@@ -32,7 +32,7 @@ var toGeoJSON = (function() {
     // get the content of a text node, if any
     function nodeVal(x) {
         if (x) { norm(x); }
-        return (x && x.textContent) || '';
+        return (x && x.firstChild && x.firstChild.nodeValue) || '';
     }
     // get one coordinate from a coordinate array, if any
     function coord1(v) { return numarray(v.replace(removeSpace, '').split(',')); }
@@ -73,17 +73,24 @@ var toGeoJSON = (function() {
         };
     }
 
-    var serializer;
+    var serializer
+    , domparser
+    ;
     if (typeof XMLSerializer !== 'undefined') {
         serializer = new XMLSerializer();
     // only require xmldom in a node environment
     } else if (typeof exports === 'object' && typeof process === 'object' && !process.browser) {
-        serializer = new (require('xmldom').XMLSerializer)();
+        serializer = new (require('xmldom')).XMLSerializer();
+        domparser = typeof DOMParser === 'undefined' ? new (require('xmldom').DOMParser)() : DOMParser; 
     }
     function xml2str(str) {
         // IE9 will create a new XMLSerializer but it'll crash immediately.
         if (str.xml !== undefined) return str.xml;
         return serializer.serializeToString(str);
+    }
+
+    function str2xml(str) {
+        return domparser.parseFromString(str);
     }
 
     var t = {
@@ -92,15 +99,21 @@ var toGeoJSON = (function() {
             var gj = fc(),
                 // styleindex keeps track of hashed styles in order to match features
                 styleIndex = {},
+                // stylemapindex is like styleindex, but for stylemaps
+                stylemapIndex = {},
                 // atomic geospatial types supported by KML - MultiGeometry is
                 // handled separately
                 geotypes = ['Polygon', 'LineString', 'Point', 'Track', 'gx:Track'],
                 // all root placemarks in the file
                 placemarks = get(doc, 'Placemark'),
-                styles = get(doc, 'Style');
-
+                styles = get(doc, 'Style'),
+                stylemaps = get(doc, 'StyleMap');
             for (var k = 0; k < styles.length; k++) {
                 styleIndex['#' + attr(styles[k], 'id')] = okhash(xml2str(styles[k])).toString(16);
+            }
+            for (var k = 0; k < stylemaps.length; k++) {
+                var val = nodeVal(get1(stylemaps[k], 'styleUrl'));
+                stylemapIndex['#' + attr(stylemaps[k], 'id')] = val;
             }
             for (var j = 0; j < placemarks.length; j++) {
                 gj.features = gj.features.concat(getPlacemark(placemarks[j]));
@@ -111,11 +124,14 @@ var toGeoJSON = (function() {
                 if (v.substr(0, 1) === "#") { v = v.substr(1); }
                 if (v.length === 6 || v.length === 3) { color = v; }
                 if (v.length === 8) {
+                    // opacity = parseInt(v.substr(6), 16) / 255;
+                    // color = v.substr(0,6);
                     opacity = parseInt(v.substr(0, 2), 16) / 255;
                     color = v.substr(2);
                 }
-                return [color, isNaN(opacity) ? undefined : opacity];
+                return [color && '#' +  color, isNaN(opacity) ? undefined : opacity];
             }
+            // function kmlIcon(v){}
             function gxCoord(v) { return numarray(v.split(' ')); }
             function gxCoords(root) {
                 var elems = get(root, 'coord', 'gx'), coords = [], times = [];
@@ -179,17 +195,38 @@ var toGeoJSON = (function() {
                 var geomsAndTimes = getGeometry(root), i, properties = {},
                     name = nodeVal(get1(root, 'name')),
                     styleUrl = nodeVal(get1(root, 'styleUrl')),
+                    // styleMap = nodeVal(get1(root, 'StyleMap')),
                     description = nodeVal(get1(root, 'description')),
                     timeSpan = get1(root, 'TimeSpan'),
                     extendedData = get1(root, 'ExtendedData'),
                     lineStyle = get1(root, 'LineStyle'),
-                    polyStyle = get1(root, 'PolyStyle');
+                    polyStyle = get1(root, 'PolyStyle'),
+                    iconStyle = get1(root, 'IconStyle')
+                    ;
 
                 if (!geomsAndTimes.geoms.length) return [];
                 if (name) properties.name = name;
-                if (styleUrl && styleIndex[styleUrl]) {
+                // if (styleUrl) {
+                var lookupstyle;
+                if (styleUrl && (lookupstyle = (styleIndex[styleUrl] || stylemapIndex[styleUrl]) ) ) {
+                // if (styleUrl && styleIndex[styleUrl]) {
                     properties.styleUrl = styleUrl;
-                    properties.styleHash = styleIndex[styleUrl];
+                    properties.styleHash = lookupstyle;
+                    if(lookupstyle){
+                            // var i = 0; 
+                        // while(i < styles.length && (!lineStyle && !polyStyle) ) {
+                        //     i++
+                        for (var i = 0, len = styles.length; i < len; i++) {
+                            var el = styles[i];
+                            if('#' + attr(el, 'id')===lookupstyle){
+                                var nv = nodeVal ( el );
+                                var tempdom = str2xml( nv )
+                                lineStyle = get1(tempdom, 'LineStyle');
+                                polyStyle = get1(tempdom, 'PolyStyle');
+                                iconStyle = get1(tempdom, 'IconStyle');
+                            }
+                        }
+                    }
                 }
                 if (description) properties.description = description;
                 if (timeSpan) {
@@ -197,6 +234,11 @@ var toGeoJSON = (function() {
                     var end = nodeVal(get1(timeSpan, 'end'));
                     properties.timespan = { begin: begin, end: end };
                 }
+                if(iconStyle){
+                    properties.iconUrl = nodeVal(get1(iconStyle, 'href'));
+                    properties.iconScale = nodeVal(get1(iconStyle, 'scale'));
+                }
+
                 if (lineStyle) {
                     var linestyles = kmlColor(nodeVal(get1(lineStyle, 'color'))),
                         color = linestyles[0],
@@ -316,9 +358,10 @@ var toGeoJSON = (function() {
                     properties: getProperties(node),
                     geometry: {
                         type: 'LineString',
-                        coordinates: line.line
+                        coordinates: line
                     }
                 };
+                if (line.times.length) routeObj.geometry.times = line.times;
                 return routeObj;
             }
             function getPoint(node) {
