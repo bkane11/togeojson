@@ -206,16 +206,12 @@ var toGeoJSON = (function() {
 
                 if (!geomsAndTimes.geoms.length) return [];
                 if (name) properties.name = name;
-                // if (styleUrl) {
+
                 var lookupstyle;
                 if (styleUrl && (lookupstyle = (styleIndex[styleUrl] || stylemapIndex[styleUrl]) ) ) {
-                // if (styleUrl && styleIndex[styleUrl]) {
                     properties.styleUrl = styleUrl;
                     properties.styleHash = lookupstyle;
                     if(lookupstyle){
-                            // var i = 0; 
-                        // while(i < styles.length && (!lineStyle && !polyStyle) ) {
-                        //     i++
                         for (var i = 0, len = styles.length; i < len; i++) {
                             var el = styles[i];
                             if('#' + attr(el, 'id')===lookupstyle){
@@ -235,8 +231,26 @@ var toGeoJSON = (function() {
                     properties.timespan = { begin: begin, end: end };
                 }
                 if(iconStyle){
-                    properties.iconUrl = nodeVal(get1(iconStyle, 'href'));
-                    properties.iconScale = nodeVal(get1(iconStyle, 'scale'));
+                    // iconUrl = nodeVal(get1(iconStyle, 'href'));
+                    // properties.iconScale = nodeVal(get1(iconStyle, 'scale'));
+                    var hotspot = get1(iconStyle, 'hotSpot');
+                    properties.icon = {
+                        url: nodeVal(get1(iconStyle, 'href'))
+                        , scale: nodeVal(get1(iconStyle, 'scale'))
+                        , color: nodeVal(get1(iconStyle, 'color'))
+                        , hotspot: {
+                            x: attr(hotspot, 'x')
+                            , y: attr(hotspot, 'y')
+                            , xunits: attr(hotspot, 'xunits')
+                            , yunits: attr(hotspot, 'yunits')
+                        }
+                    }
+                    // properties.iconHotSpot = {
+                    //     x: attr(hotspot, 'x')
+                    //     , y: attr(hotspot, 'y')
+                    //     , xunits: attr(hotspot, 'xunits')
+                    //     , yunits: attr(hotspot, 'yunits')
+                    // }
                 }
 
                 if (lineStyle) {
