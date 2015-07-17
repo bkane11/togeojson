@@ -118,6 +118,7 @@ var toGeoJSON = (function() {
             for (var j = 0; j < placemarks.length; j++) {
                 gj.features = gj.features.concat(getPlacemark(placemarks[j]));
             }
+            // kmlcolor format AABBGGRR
             function kmlColor(v) {
                 var color, opacity;
                 v = v || "";
@@ -126,8 +127,11 @@ var toGeoJSON = (function() {
                 if (v.length === 8) {
                     // opacity = parseInt(v.substr(6), 16) / 255;
                     // color = v.substr(0,6);
-                    opacity = parseInt(v.substr(0, 2), 16) / 255;
-                    color = v.substr(2);
+                    opacity = parseInt(v.substr(0, 2), 16) // / 255;
+                    color = v.substr(2)
+                        // reverse - from bbggrr to rrggbb
+                        .split('').reverse().join('')
+                    ;
                 }
                 return [color && '#' +  color, isNaN(opacity) ? undefined : opacity];
             }
