@@ -213,7 +213,7 @@ var toGeoJSON = (function() {
                     properties.styleUrl = styleUrl;
                     properties.styleHash = lookupstyle;
                     if(lookupstyle){
-                        console.log(styleUrl, lookupstyle);
+                        // console.log(styleUrl, lookupstyle);
                         for (var i = 0, len = styles.length; i < len; i++) {
                             var el = styles[i];
                             if( !!~[lookupstyle, styleUrl].indexOf('#' + attr(el, 'id') ) ){
