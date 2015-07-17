@@ -35,9 +35,14 @@
   },
   "license": "BSD",
   "dependencies": {
-    "xmldom": "~0.1.19",
-    "concat-stream": "~1.4.5",
-    "minimist": "0.0.8"
+    "brfs": "^0.2.2",
+    "concat-stream": "^1.4.10",
+    "coveralls": "^2.10.1",
+    "glob": "^4.5.3",
+    "istanbul": "^0.2.16",
+    "minimist": "0.0.8",
+    "tape": "^3.0.3",
+    "xmldom": "^0.1.19"
   },
   "keywords": [
     "kml",

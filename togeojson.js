@@ -203,6 +203,7 @@ var toGeoJSON = (function() {
                     polyStyle = get1(root, 'PolyStyle'),
                     iconStyle = get1(root, 'IconStyle')
                     ;
+                
 
                 if (!geomsAndTimes.geoms.length) return [];
                 if (name) properties.name = name;
@@ -212,9 +213,11 @@ var toGeoJSON = (function() {
                     properties.styleUrl = styleUrl;
                     properties.styleHash = lookupstyle;
                     if(lookupstyle){
+                        console.log(styleUrl, lookupstyle);
                         for (var i = 0, len = styles.length; i < len; i++) {
                             var el = styles[i];
-                            if('#' + attr(el, 'id')===lookupstyle){
+                            if( !!~[lookupstyle, styleUrl].indexOf('#' + attr(el, 'id') ) ){
+                            // if('#' + attr(el, 'id')===lookupstyle){
                                 var nv = nodeVal ( el );
                                 var tempdom = str2xml( nv )
                                 lineStyle = get1(tempdom, 'LineStyle');
@@ -231,6 +234,7 @@ var toGeoJSON = (function() {
                     properties.timespan = { begin: begin, end: end };
                 }
                 if(iconStyle){
+                    // console.log(iconStyle)
                     // iconUrl = nodeVal(get1(iconStyle, 'href'));
                     // properties.iconScale = nodeVal(get1(iconStyle, 'scale'));
                     var hotspot = get1(iconStyle, 'hotSpot');
@@ -238,13 +242,15 @@ var toGeoJSON = (function() {
                         url: nodeVal(get1(iconStyle, 'href'))
                         , scale: nodeVal(get1(iconStyle, 'scale'))
                         , color: nodeVal(get1(iconStyle, 'color'))
-                        , hotspot: {
+                    }
+                    
+                    if(hotspot)
+                        properties.icon.hotspot = {
                             x: attr(hotspot, 'x')
                             , y: attr(hotspot, 'y')
                             , xunits: attr(hotspot, 'xunits')
                             , yunits: attr(hotspot, 'yunits')
                         }
-                    }
                     // properties.iconHotSpot = {
                     //     x: attr(hotspot, 'x')
                     //     , y: attr(hotspot, 'y')
@@ -254,6 +260,7 @@ var toGeoJSON = (function() {
                 }
 
                 if (lineStyle) {
+                    // console.log(lineStyle)
                     var linestyles = kmlColor(nodeVal(get1(lineStyle, 'color'))),
                         color = linestyles[0],
                         opacity = linestyles[1],
@@ -263,6 +270,7 @@ var toGeoJSON = (function() {
                     if (!isNaN(width)) properties['stroke-width'] = width;
                 }
                 if (polyStyle) {
+                    // console.log(polyStyle)
                     var polystyles = kmlColor(nodeVal(get1(polyStyle, 'color'))),
                         pcolor = polystyles[0],
                         popacity = polystyles[1],
