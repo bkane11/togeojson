@@ -127,11 +127,19 @@ var toGeoJSON = (function() {
                 if (v.length === 8) {
                     // opacity = parseInt(v.substr(6), 16) / 255;
                     // color = v.substr(0,6);
-                    opacity = parseInt(v.substr(0, 2), 16) // / 255;
-                    color = v.substr(2)
+                    var colorparts = v.substr(2)
                         // reverse - from bbggrr to rrggbb
-                        .split('').reverse().join('')
+                        .split('');
+
+                    opacity = parseInt(v.substr(0, 2), 16) / 255;                    
+                    color = [].concat.call([
+                            colorparts.slice(4,6)//.reverse()
+                            , colorparts.slice(2,4)//.reverse()
+                            , colorparts.slice(0,2)//.reverse()
+                        ]).map(function(item){ return item.join('') })
+                        .join('')
                     ;
+
                 }
                 return [color && '#' +  color, isNaN(opacity) ? undefined : opacity];
             }
@@ -269,6 +277,7 @@ var toGeoJSON = (function() {
                         color = linestyles[0],
                         opacity = linestyles[1],
                         width = parseFloat(nodeVal(get1(lineStyle, 'width')));
+                    // console.log(linestyles);
                     if (color) properties.stroke = color;
                     if (!isNaN(opacity)) properties['stroke-opacity'] = opacity;
                     if (!isNaN(width)) properties['stroke-width'] = width;
@@ -283,7 +292,8 @@ var toGeoJSON = (function() {
                     if (pcolor) properties.fill = pcolor;
                     if (!isNaN(popacity)) properties['fill-opacity'] = popacity;
                     if (fill) properties['fill-opacity'] = fill === "1" ? 1 : 0;
-                    if (outline) properties['stroke-opacity'] = outline === "1" ? 1 : 0;
+                    if (outline && !properties['stroke-opacity']) 
+                        properties['stroke-opacity'] = outline === "1" ? 1 : 0;
                 }
                 if (extendedData) {
                     var datas = get(extendedData, 'Data'),
