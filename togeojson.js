@@ -103,20 +103,25 @@ var toGeoJSON = (function() {
                 stylemapIndex = {},
                 // atomic geospatial types supported by KML - MultiGeometry is
                 // handled separately
-                geotypes = ['Polygon', 'LineString', 'Point', 'Track', 'gx:Track'],
+                geotypes = ['Polygon', 'LineString', 'Point', 'Track', 'gx:Track', 'LatLonBox'],
                 // all root placemarks in the file
                 placemarks = get(doc, 'Placemark'),
                 styles = get(doc, 'Style'),
-                stylemaps = get(doc, 'StyleMap');
+                stylemaps = get(doc, 'StyleMap'),
+                groundOverlays = get(doc, 'GroundOverlay')
+                ;
             for (var k = 0; k < styles.length; k++) {
                 styleIndex['#' + attr(styles[k], 'id')] = okhash(xml2str(styles[k])).toString(16);
             }
-            for (var k = 0; k < stylemaps.length; k++) {
-                var val = nodeVal(get1(stylemaps[k], 'styleUrl'));
-                stylemapIndex['#' + attr(stylemaps[k], 'id')] = val;
+            for (var j = 0; j < stylemaps.length; j++) {
+                var val = nodeVal(get1(stylemaps[j], 'styleUrl'));
+                stylemapIndex['#' + attr(stylemaps[j], 'id')] = val;
             }
-            for (var j = 0; j < placemarks.length; j++) {
-                gj.features = gj.features.concat(getPlacemark(placemarks[j]));
+            for (var k = 0; k < placemarks.length; k++) {
+                gj.features = gj.features.concat(getPlacemark(placemarks[k]));
+            }
+            for (var l = 0; l < groundOverlays.length; l++) {
+                gj.features = gj.features.concat(getPlacemark(groundOverlays[l]));
             }
             // kmlcolor format AABBGGRR
             function kmlColor(v) {
@@ -166,6 +171,7 @@ var toGeoJSON = (function() {
                     if (geomNodes) {
                         for (j = 0; j < geomNodes.length; j++) {
                             geomNode = geomNodes[j];
+                            // console.log(geotypes[i])
                             if (geotypes[i] === 'Point') {
                                 geoms.push({
                                     type: 'Point',
@@ -186,6 +192,22 @@ var toGeoJSON = (function() {
                                     type: 'Polygon',
                                     coordinates: coords
                                 });
+                                // console.log('polygon')
+                            }else if (geotypes[i] === 'LatLonBox') {
+                                // var rings = get(geomNode, 'LinearRing'),
+                                var west = parseFloat(nodeVal(get1(geomNode, 'west')))
+                                , south = parseFloat(nodeVal(get1(geomNode, 'south')))
+                                , east = parseFloat(nodeVal(get1(geomNode, 'east')))
+                                , north = parseFloat(nodeVal(get1(geomNode, 'north')))
+                                , coords = [[ [west, south], [west, north], [east, north], [east, south], [west, south] ]]
+                                ;
+
+                                geoms.push({
+                                    type: 'Polygon',
+                                    bbox: [west, south, east, north],
+                                    coordinates: coords
+                                });
+                                // console.log('polygon')
                             } else if (geotypes[i] === 'Track' ||
                                 geotypes[i] === 'gx:Track') {
                                 var track = gxCoords(geomNode);
@@ -213,10 +235,9 @@ var toGeoJSON = (function() {
                     extendedData = get1(root, 'ExtendedData'),
                     lineStyle = get1(root, 'LineStyle'),
                     polyStyle = get1(root, 'PolyStyle'),
-                    iconStyle = get1(root, 'IconStyle')
+                    iconStyle = get1(root, 'IconStyle') || get1(root, 'Icon')
                     ;
                 
-
                 if (!geomsAndTimes.geoms.length) return [];
                 if (name) properties.name = name;
 
@@ -246,7 +267,7 @@ var toGeoJSON = (function() {
                     properties.timespan = { begin: begin, end: end };
                 }
                 if(iconStyle){
-                    // console.log(iconStyle)
+                    console.log(iconStyle, name)
                     // iconUrl = nodeVal(get1(iconStyle, 'href'));
                     // properties.iconScale = nodeVal(get1(iconStyle, 'scale'));
                     var hotspot = get1(iconStyle, 'hotSpot');
@@ -310,6 +331,17 @@ var toGeoJSON = (function() {
                     properties.coordTimes = (geomsAndTimes.coordTimes.length === 1) ?
                         geomsAndTimes.coordTimes[0] : geomsAndTimes.coordTimes;
                 }
+
+                console.log( 'types:', geomsAndTimes.geoms
+                    .map(function(a){ return a.type} )
+                    .reduce(function(last, current){
+                        var re = new RegExp(current, 'i');
+                        if( !re.test(last) )
+                            last += ',' + current
+                        return last
+                    })
+                )
+
                 var feature = {
                     type: 'Feature',
                     geometry: (geomsAndTimes.geoms.length === 1) ? geomsAndTimes.geoms[0] : {
