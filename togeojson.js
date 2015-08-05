@@ -267,7 +267,7 @@ var toGeoJSON = (function() {
                     properties.timespan = { begin: begin, end: end };
                 }
                 if(iconStyle){
-                    console.log(iconStyle, name)
+                    // console.log(iconStyle, name)
                     // iconUrl = nodeVal(get1(iconStyle, 'href'));
                     // properties.iconScale = nodeVal(get1(iconStyle, 'scale'));
                     var hotspot = get1(iconStyle, 'hotSpot');
@@ -332,25 +332,45 @@ var toGeoJSON = (function() {
                         geomsAndTimes.coordTimes[0] : geomsAndTimes.coordTimes;
                 }
 
-                console.log( 'types:', geomsAndTimes.geoms
+                var types = geomsAndTimes.geoms
                     .map(function(a){ return a.type} )
                     .reduce(function(last, current){
                         var re = new RegExp(current, 'i');
                         if( !re.test(last) )
                             last += ',' + current
                         return last
-                    })
-                )
+                })
 
-                var feature = {
-                    type: 'Feature',
-                    geometry: (geomsAndTimes.geoms.length === 1) ? geomsAndTimes.geoms[0] : {
-                        type: 'GeometryCollection',
-                        geometries: geomsAndTimes.geoms
-                    },
-                    properties: properties
-                };
-                if (attr(root, 'id')) feature.id = attr(root, 'id');
+                if(/(polygon|point)/i.test(types)){
+                    console.log( 'type:', types)
+                }
+
+                if(geomsAndTimes.geoms.length>1){
+                    var features = [];
+                    geomsAndTimes.geoms.forEach(function(item){
+                        features.push({
+                            type: 'Feature'
+                            , geometry: item
+                            , properties: properties
+                        })
+                    })
+                    return features
+                }else{
+                    var feature = {
+                        type: 'Feature',
+                        geometry: (geomsAndTimes.geoms.length === 1) ? geomsAndTimes.geoms[0] : {
+                            type: 'GeometryCollection',
+                            geometries: geomsAndTimes.geoms
+                        },
+                        properties: properties
+                    };
+                }
+                
+                var id = attr(root, 'id');
+                if(id)
+                    feature.id = attr(root, 'id');
+
+
                 return [feature];
             }
             return gj;
