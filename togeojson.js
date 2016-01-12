@@ -84,6 +84,7 @@ var toGeoJSON = (function() {
         domparser = typeof DOMParser === 'undefined' ? new (require('xmldom').DOMParser)() : DOMParser; 
     }
     function xml2str(str) {
+        console.dir(str);
         // IE9 will create a new XMLSerializer but it'll crash immediately.
         if (str.xml !== undefined) return str.xml;
         return serializer.serializeToString(str);
@@ -91,6 +92,61 @@ var toGeoJSON = (function() {
 
     function str2xml(str) {
         return domparser.parseFromString(str);
+    }
+
+
+    function setPropertiesFromDescription(properties, description){
+        if( /<table/i.test(description) ){
+            var propsArr = getPropsFromTable(description);
+            if(propsArr && propsArr.length > 0){  
+                propsArr.forEach(function(prop){
+                  updateProps(properties, prop);
+                })
+            }
+        }
+    }
+
+    function updateProps(properties, props){
+      for(var prop in props){
+        // printjson(['updating', prop])
+        var og = properties[prop];
+        if(og)
+          properties['og_'+prop] = og;
+        properties[prop] = props[prop];
+      }
+      return properties
+    }
+
+    function getPropsFromTable(table){
+      return table.split(/<tr(.*)>/g)
+          .map(function(item){
+            return item && item.trim()
+          })
+          .filter(function(item){
+              return item && /<td(.*)>/g.test( item )
+          })
+          .map(function(s2, i){
+            var a = s2
+              .replace(/<\/tr>/g, '')
+              .replace(/<(\/)?td>/g, '')
+              .replace(/\r/g, '')
+              .trim()
+              .split(/\n/)
+              .map(function(item, index, arr){
+                return arr.length == 2 ? item : null
+              })
+              .filter(function(item){
+                return item
+              })
+            if(a.length == 2){
+              var props = {};
+              props[a[0]] = a[1];
+              return props
+            }
+            return null
+        }).filter(function(item){
+          return item
+        })
     }
 
     var t = {
@@ -260,7 +316,12 @@ var toGeoJSON = (function() {
                         }
                     }
                 }
-                if (description) properties.description = description;
+                if (description){
+                    if( /<table/i.test(description) )
+                        setPropertiesFromDescription(properties, description)
+                    else
+                        properties.description = description;
+                }
                 if (timeSpan) {
                     var begin = nodeVal(get1(timeSpan, 'begin'));
                     var end = nodeVal(get1(timeSpan, 'end'));
